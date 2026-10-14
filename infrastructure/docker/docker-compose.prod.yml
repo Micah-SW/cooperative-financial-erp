@@ -1,0 +1,10 @@
+# Production Docker Compose (future)
+#
+# Extends the base docker-compose.yml with:
+#   - Nginx reverse proxy
+#   - Production environment variables
+#   - No bind mounts (use built images)
+#   - Healthchecks
+#   - Restart policies
+#
+# TODO (Gemini): Implement for production deployment
