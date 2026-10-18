@@ -8,29 +8,54 @@ Responsibility:
 
 Dependencies:
     - sqlalchemy[asyncio]
-    - asyncpg
+    - asyncpg (or aiosqlite for tests)
     - app.config.settings (DATABASE_URL)
 
 Must NOT:
     - Contain model definitions
     - Contain business logic
     - Commit transactions (services control transaction boundaries)
-
-TODO (Gemini):
-    - Create async engine from settings.DATABASE_URL
-    - Create async_sessionmaker
-    - Implement get_db() async generator for FastAPI Depends()
-    - Session must use expire_on_commit=False for async compatibility
-    - Engine pool size appropriate for ~150 member cooperative (pool_size=5, max_overflow=10)
 """
 
-# from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-# from app.config import settings
+from collections.abc import AsyncGenerator
+from typing import Any
 
-# engine = create_async_engine(settings.DATABASE_URL, ...)
-# async_session = async_sessionmaker(engine, ...)
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-# async def get_db() -> AsyncGenerator[AsyncSession, None]:
-#     ...
+from app.config import settings
 
-# TODO: Implement database setup
+engine_kwargs: dict[str, Any] = {"echo": settings.DEBUG}
+if "sqlite" not in settings.DATABASE_URL:
+    engine_kwargs.update(
+        {
+            "pool_size": 5,
+            "max_overflow": 10,
+            "pool_pre_ping": True,
+        }
+    )
+
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+
+async_session_factory = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Provide an async database session dependency for FastAPI Depends()."""
+    async with async_session_factory() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

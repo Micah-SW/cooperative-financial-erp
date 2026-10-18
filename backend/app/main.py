@@ -25,7 +25,7 @@ TODO (Gemini):
     - Register the v1 router under /api/v1
     - Register exception handlers mapping domain exceptions to HTTP responses:
         NotFoundError → 404
-        ValidationError → 400/422
+        BusinessValidationError → 400/422
         AuthorizationError → 403
         ImmutabilityError → 422
         InsufficientFundsError → 422

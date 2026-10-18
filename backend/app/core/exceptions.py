@@ -6,7 +6,7 @@ API routers catch them and translate to appropriate HTTP responses.
 
 Mapping:
     NotFoundError           → 404
-    ValidationError         → 400 / 422
+    BusinessValidationError → 400 / 422
     AuthorizationError      → 403
     ImmutabilityError       → 422
     InsufficientFundsError  → 422
@@ -29,12 +29,16 @@ class NotFoundError(CoopException):
     pass
 
 
-class ValidationError(CoopException):
+class BusinessValidationError(CoopException):
     """Business rule validation failure."""
 
     def __init__(self, message: str, field_errors: dict[str, list[str]] | None = None):
         self.field_errors = field_errors or {}
         super().__init__(message, error_code="VALIDATION_ERROR")
+
+
+# Alias for backwards compatibility with any early imports
+ValidationError = BusinessValidationError
 
 
 class AuthorizationError(CoopException):

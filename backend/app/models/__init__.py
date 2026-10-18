@@ -6,7 +6,7 @@ All models MUST be imported here so Alembic can discover them for migrations.
 TODO (Gemini): Uncomment imports once models are implemented.
 """
 
-# from app.models.base import CoopBase  # noqa: F401
+from app.models.base import CoopBase  # noqa: F401
 # from app.models.user import User  # noqa: F401
 # from app.models.audit_log import AuditLog  # noqa: F401
 # from app.models.system_config import SystemConfig  # noqa: F401

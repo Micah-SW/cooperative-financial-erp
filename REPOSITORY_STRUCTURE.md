@@ -199,7 +199,13 @@ mom_company_erp/
 │
 └── docs/                                   # ── DOCUMENTATION ──
     ├── SETUP.md                            # Setup and development guide
-    └── API.md                              # API reference (auto-generated from FastAPI)
+    ├── API.md                              # API reference (auto-generated from FastAPI)
+    ├── OPEN_QUESTIONS.md                   # Business rule classifications & open decisions register
+    ├── domain_model.md                     # Domain model specification
+    ├── database_schema.md                  # PostgreSQL DDL and constraints
+    ├── api_contract.md                     # REST API endpoint specification
+    ├── service_contracts.md               # Service contracts & invariants
+    └── implementation_plan.md              # Master multi-chapter implementation roadmap
 ```
 
 ---
@@ -260,6 +266,12 @@ mom_company_erp/
 |---|---|
 | `SETUP.md` | Development environment setup guide |
 | `API.md` | API reference (links to FastAPI auto-docs) |
+| `OPEN_QUESTIONS.md` | Business rule classifications & open decisions register |
+| `domain_model.md` | Domain model specification |
+| `database_schema.md` | PostgreSQL DDL, constraints, and immutability triggers |
+| `api_contract.md` | REST API endpoint specification & RBAC matrix |
+| `service_contracts.md` | Service contracts, signatures, and transaction invariants |
+| `implementation_plan.md` | Master multi-chapter implementation plan |
 
 ---
 
@@ -275,23 +287,28 @@ mom_company_erp/
 
 ## Implementation Status
 
-### Fully Implemented (3 files)
+### Fully Implemented (7 files)
 | File | Description |
 |---|---|
-| `backend/app/core/enums.py` | All 12 canonical enumerations |
-| `backend/app/core/exceptions.py` | 7-class domain exception hierarchy |
+| `backend/app/core/enums.py` | All 12 canonical enumerations (including `AuditAction`) |
+| `backend/app/core/exceptions.py` | 7-class domain exception hierarchy (`BusinessValidationError`) |
+| `backend/app/core/pagination.py` | Generic Pydantic `PaginatedResult[T]` + async `paginate()` helper |
+| `backend/app/config.py` | Typed `Settings` class via `pydantic-settings` |
+| `backend/app/database.py` | Async SQLAlchemy engine, sessionmaker, and `get_db` dependency |
+| `backend/app/models/base.py` | `CoopBase` declarative base with UUID PK and `coop` schema |
 | `backend/app/utils/money.py` | Decimal rounding helper (partial) |
 
-### Configuration Files (9 files)
+### Configuration Files (10 files)
 | File | Description |
 |---|---|
 | `backend/pyproject.toml` | Python dependencies and tool config |
 | `backend/.env.example` | Environment variable template |
 | `backend/Dockerfile` | Backend container definition |
-| `backend/alembic.ini` | Alembic migration config |
+| `backend/alembic.ini` | Secure Alembic migration config (no hardcoded credentials) |
+| `backend/alembic/env.py` | Async Alembic migration environment |
 | `backend/alembic/script.py.mako` | Migration script template |
 | `docker-compose.yml` | Dev environment orchestration |
-| `.gitignore` | Git exclusion rules |
+| `.gitignore` | Consolidated Git exclusion rules |
 | `infrastructure/nginx/nginx.conf` | Nginx placeholder |
 | `infrastructure/docker/docker-compose.prod.yml` | Production compose placeholder |
 
@@ -424,8 +441,9 @@ backend/app/api/v1/reports.py
 |---|---|---|
 | Architecture Blueprint | [`ARCHITECTURE.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/ARCHITECTURE.md) | System design, flows, decisions, risks |
 | Module Map | [`MODULE_MAP.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/MODULE_MAP.md) | Module specs, acceptance criteria |
-| Domain Model | `domain_model.md` (artifacts) | Entity field specifications |
-| Database Schema | `database_schema.md` (artifacts) | DDL, constraints, indexes |
-| API Contract | `api_contract.md` (artifacts) | REST endpoint specifications |
-| Service Contracts | `service_contracts.md` (artifacts) | Method signatures, invariants |
-| Implementation Plan | `implementation_plan.md` (artifacts) | Phases, timeline, verification |
+| Domain Model | [`docs/domain_model.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/domain_model.md) | Entity field specifications |
+| Database Schema | [`docs/database_schema.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/database_schema.md) | DDL, constraints, indexes |
+| API Contract | [`docs/api_contract.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/api_contract.md) | REST endpoint specifications |
+| Service Contracts | [`docs/service_contracts.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/service_contracts.md) | Method signatures, invariants |
+| Open Questions Register | [`docs/OPEN_QUESTIONS.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/OPEN_QUESTIONS.md) | Business rule classifications & open decisions register |
+| Implementation Plan | [`docs/implementation_plan.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/implementation_plan.md) | Phases, timeline, verification |

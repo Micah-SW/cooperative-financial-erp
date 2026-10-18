@@ -13,26 +13,42 @@ Must NOT:
     - Contain business logic
     - Contain business-rule configuration (those go in system_config table)
     - Hard-code sensitive values
-
-TODO (Gemini):
-    - Create Settings class extending BaseSettings
-    - Fields:
-        DATABASE_URL: str
-        SECRET_KEY: str
-        JWT_ALGORITHM: str = "HS256"
-        JWT_EXPIRATION_MINUTES: int = 480
-        APP_NAME: str = "Cooperative Financial Management ERP"
-        DEBUG: bool = False
-        CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-    - Configure model_config for .env file loading
-    - Export singleton: settings = Settings()
 """
 
-# from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# class Settings(BaseSettings):
-#     ...
 
-# settings = Settings()
+class Settings(BaseSettings):
+    """Application settings loaded from environment or .env file."""
 
-# TODO: Implement settings class
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    DATABASE_URL: str = Field(
+        default="postgresql+asyncpg://coop_user:coop_password@localhost:5432/coop_erp",
+        description="Async database connection string",
+    )
+    SECRET_KEY: str = Field(
+        default="change-me-to-a-real-secret-key",
+        description="Secret key for JWT generation/validation",
+    )
+    JWT_ALGORITHM: str = Field(default="HS256", description="JWT signing algorithm")
+    JWT_EXPIRATION_MINUTES: int = Field(
+        default=480, description="Access token expiration in minutes"
+    )
+    APP_NAME: str = Field(
+        default="Cooperative Financial Management ERP",
+        description="Application name",
+    )
+    DEBUG: bool = Field(default=False, description="Debug mode flag")
+    CORS_ORIGINS: list[str] = Field(
+        default=["http://localhost:3000"],
+        description="Allowed CORS origins",
+    )
+
+
+settings = Settings()

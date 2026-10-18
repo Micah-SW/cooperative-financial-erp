@@ -1,69 +1,45 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.egg
 *.egg-info/
 dist/
 build/
-*.egg
 .venv/
 venv/
 env/
 
-# Environment
+# Secrets and Environment
 .env
+.env.*
 .env.local
+!.env.example
 
-# IDE
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Node
+# Node / Frontend
 node_modules/
 frontend/dist/
 frontend/build/
-
-# Docker
-*.log
 
 # Database
 *.db
 *.sqlite3
 
-# Test
-.coverage
-htmlcov/
-.pytest_cache/
+# Logs
+*.log
 
 # Alembic
-# Don't ignore versions — those are tracked
-
-
-# Secrets and environment files
-.env
-.env.*
-!.env.example
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Frontend
-node_modules/
-dist/
-build/
-
-# IDE and logs
-.vscode/
-.idea/
-*.log
+# Don't ignore versions — those are tracked in source control

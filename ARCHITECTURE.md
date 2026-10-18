@@ -891,7 +891,7 @@ graph LR
 | Domain Exception | HTTP Status | Error Code |
 |---|---|---|
 | `NotFoundError` | 404 | `NOT_FOUND` |
-| `ValidationError` | 400 / 422 | `VALIDATION_ERROR` |
+| `BusinessValidationError` | 400 / 422 | `VALIDATION_ERROR` |
 | `AuthorizationError` | 403 | `AUTHORIZATION_ERROR` |
 | `ImmutabilityError` | 422 | `IMMUTABILITY_ERROR` |
 | `InsufficientFundsError` | 422 | `INSUFFICIENT_FUNDS` |
@@ -1039,26 +1039,36 @@ graph TB
 
 ---
 
-## 16. Unresolved Business Rules
+## 16. Business Rule Classification & Unresolved Decisions
 
 > [!CAUTION]
-> These rules have NOT been established by the cooperative. The system must accommodate these decisions when they are made. Implementation MUST NOT silently invent behavior for any of them.
+> Rules in this register are classified into three distinct categories:
+> 1. **CONFIRMED BUSINESS REQUIREMENT**: Established cooperative policy that the software must strictly enforce.
+> 2. **UNRESOLVED BUSINESS DECISION**: Open legal, governance, financial, or accounting questions that the cooperative has NOT yet decided. Implementation MUST NOT treat proposed software behaviors as approved cooperative policy.
+> 3. **PROPOSED TECHNICAL SAFEGUARD**: Software safety mechanisms (e.g., state restrictions, separate tables, disabled flags) created to protect data while business decisions are pending.
+>
+> For full analysis and chapter-by-chapter blocking details, see: [`docs/OPEN_QUESTIONS.md`](file:///c:/Users/Cyberpunk/Documents/mom_company_erp/docs/OPEN_QUESTIONS.md).
 
-| ID | Rule | Impact | Current Stance |
+| ID | Rule | Classification | Cooperative Stance vs. Proposed Technical Safeguard |
 |---|---|---|---|
-| **UBR-1** | Exit payout formula (full balance? deductions? waiting period?) | Member exit flow, withdrawal service | Record raw balance; payout logic deferred to admin discretion |
-| **UBR-2** | Contribution frequency (monthly? grace period? penalties?) | Contribution module, compliance reporting | Record contributions as they occur; no enforcement |
-| **UBR-3** | Dividend/profit sharing to members | Fund allocation, member balance | Currently NO — profits belong to cooperative |
-| **UBR-4** | Voting rights tied to shares | Entirely separate module | Out of scope |
-| **UBR-5** | Loan facility against member equity | New module | Out of scope |
-| **UBR-6** | Multi-currency support | All monetary columns | Single currency (ETB); schema supports future extension |
-| **UBR-7** | Interest accrual on member balances | Balance calculation | Assume NO interest |
-| **UBR-8** | Partial withdrawal without exiting | Withdrawal module | Model supports it; feature disabled until decision made |
-| **UBR-9** | Bank reconciliation process | Contribution verification | Manual verification by treasurer for v1 |
-| **UBR-10** | Fiscal year definition | Reporting periods | Calendar year assumed |
-| **UBR-11** | SUSPENDED member status | Member status enum | Enum includes it; no transitions defined |
-| **UBR-12** | Maximum contribution limits | Contribution validation | No maximum enforced |
-| **UBR-13** | Approval workflow for expenses | Expense recording | No approval workflow; direct recording by ADMIN/TREASURER |
+| **UBR-1** | Exit payout formula & waiting period | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: Exiting members receive refundable money under applicable rules; shares extinguished; records retained.<br>**Unresolved**: Deduction formulas, shared loss allocations, payout waiting periods.<br>**Safeguard**: Record raw historical balances; payout logic deferred to manual administrative entry until formal policy is adopted. |
+| **UBR-2** | Contribution frequency & penalty enforcement | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: Current contribution is ETB 300 (member/project) + ETB 50 (operating).<br>**Unresolved**: Mandatory calendar due dates, grace periods, default penalties.<br>**Safeguard**: Record contributions as deposits occur; do not enforce automated penalties or lockouts in software. |
+| **UBR-3** | Individual profit / dividend distribution | **CONFIRMED BUSINESS REQUIREMENT** | **Confirmed**: Profits from cooperative investments and properties belong exclusively to the union. Zero profit/dividends distributed to individual members.<br>**Safeguard**: Ledger schema strictly prohibits credit transactions from rental/investment funds into member equity accounts. |
+| **UBR-4** | Voting rights tied to shares | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: One-member-one-vote vs share-weighted voting.<br>**Safeguard**: Excluded entirely from financial ERP scope. |
+| **UBR-5** | Loan facility against member equity | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Whether member equity may collateralize internal loans.<br>**Safeguard**: Excluded entirely from v1 financial schema. |
+| **UBR-6** | Multi-currency support | **CONFIRMED BUSINESS REQUIREMENT** | **Confirmed**: All financial accounts, shares, and contributions operate strictly in Ethiopian Birr (ETB).<br>**Safeguard**: Single currency (ETB) enforced across ledger; currency code field preserved in config for future extensibility without conversion logic. |
+| **UBR-7** | Interest accrual on member balances | **CONFIRMED BUSINESS REQUIREMENT** | **Confirmed**: Member contribution balances do not accrue interest. The cooperative is not a commercial bank.<br>**Safeguard**: Zero interest accrual logic or transactions exist in the ledger engine. |
+| **UBR-8** | Partial withdrawal without exiting | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Whether active members may withdraw accumulated contributions without exiting.<br>**Safeguard**: Model schema supports it, but feature is disabled by default via `PARTIAL_WITHDRAWAL_ALLOWED = false` config flag. |
+| **UBR-9** | Bank reconciliation & deposit verification workflow | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: Members deposit directly into cooperative bank accounts.<br>**Unresolved**: Formal multi-tier verification process, approval chains, reconciliation timeframe.<br>**Safeguard**: Two-stage workflow (`RECORDED` → `VERIFIED`) requiring manual cross-referencing with bank slips by authorized treasurer/admin. |
+| **UBR-10** | Fiscal year definition | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Gregorian calendar year vs Ethiopian fiscal year (Hamle 1 - Sene 30).<br>**Safeguard**: Store ISO timestamps; parameterize reporting queries with explicit date ranges (`start_date`, `end_date`) to remain fiscal-year agnostic. |
+| **UBR-11** | SUSPENDED member status | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Grounds for suspension, impact on ongoing contribution duties, and access rights.<br>**Safeguard**: Enum includes `SUSPENDED` value for future compatibility, but zero automated transition workflows or business logic are attached to it. |
+| **UBR-12** | Maximum contribution limits | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Whether members may voluntarily contribute above ETB 300/50, and surplus classification.<br>**Safeguard**: Validate member vs operating split but enforce no arbitrary contribution ceilings in software. |
+| **UBR-13** | Approval workflow for expenses | **UNRESOLVED BUSINESS DECISION** | **Unresolved**: Tiered expenditure authorization thresholds (e.g. board sign-off above specific amounts).<br>**Safeguard**: Direct recording by `ADMIN` or `TREASURER` with mandatory receipt reference and fund specification; tiered multi-signature workflows deferred. |
+| **UBR-14** | Share capital vs. recurring contribution relationship | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: 12 shares @ ETB 5,000 = ETB 60,000; recurring contribution is ETB 300 + ETB 50.<br>**Unresolved**: Whether initial ETB 60,000 share balance is merged into recurring contribution balances or held as distinct equity with different exit rules.<br>**Safeguard**: Maintain `coop.shares` and `coop.contributions` as strictly distinct tables and separate ledger streams; do not implement automated opening-balance merging, cumulative balance calculations, or combined payout workflows until formally resolved by the cooperative. |
+| **UBR-15** | Historical opening balance ledger cut-off & import protocol | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: ~150 founding members have historical records.<br>**Unresolved**: Authoritative cut-off date and method (lump-sum vs retroactive) for importing opening balances into the immutable ledger.<br>**Safeguard**: No automated opening-balance import scripts or ledger seeding are implemented in software; schema supports `OPENING_BALANCE` transaction type when authoritative cut-off figures are formally approved. |
+| **UBR-16** | Direct bank deposit verification & unidentified inflows | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: Members deposit directly into bank accounts.<br>**Unresolved**: Accounting policy and timeframe for identifying unreferenced bank deposits.<br>**Safeguard**: Unidentified bank inflows are never automatically assigned to any member; manual cross-referencing with physical slips is mandatory before verifying. |
+| **UBR-17** | Exited member historical retention & re-admission policy | **UNRESOLVED BUSINESS DECISION** | **Confirmed**: Members can leave, have shares extinguished, receive refundable money under applicable rules, and historical records must remain available.<br>**Unresolved**: Whether exit is permanently irreversible by cooperative policy, or whether an exited member could later be readmitted if membership reopens.<br>**Safeguard**: In the v1 software state machine, member exit transition `ACTIVE` → `EXITED` is strictly one-way without automated reactivation routes. Historical records are preserved permanently (never deleted). This technical constraint is a safeguard to prevent accidental reactivation and must NOT be misconstrued as an approved cooperative policy prohibiting readmission. |
+| **UBR-18** | Rental income allocation, mall project funding & reserve fund | **UNRESOLVED BUSINESS DECISION** *(with Confirmed Intent)* | **Confirmed**: Investment profits do not belong to individual members. Cooperative income supports normal union expenses, and remaining rental-project income is intended for the mall project.<br>**Unresolved**: Whether a formal statutory "Reserve Fund" is required by bylaws, and the exact formula/split for allocating rental income between expenses and project capital.<br>**Safeguard**: Isolate rental earnings from member equity ledgers. Store rental income in dedicated cooperative accounts without distributing dividends to members. Fund allocation ratios between operating expenses and project construction remain configurable rather than hardcoded in application logic. |
 
 ---
 
@@ -1113,9 +1123,10 @@ Querying config:
 
 | Document | Path | Purpose |
 |---|---|---|
-| Implementation Plan | `implementation_plan.md` (artifacts) | Phases, timeline, verification |
-| Domain Model | `domain_model.md` (artifacts) | Entity specs, relationships, enums |
-| Database Schema | `database_schema.md` (artifacts) | DDL, constraints, indexes |
-| API Contract | `api_contract.md` (artifacts) | REST endpoints, auth matrix |
-| Service Contracts | `service_contracts.md` (artifacts) | Method signatures, invariants |
+| Implementation Plan | `docs/implementation_plan.md` | Phases, timeline, verification |
+| Domain Model | `docs/domain_model.md` | Entity specs, relationships, enums |
+| Database Schema | `docs/database_schema.md` | DDL, constraints, indexes |
+| API Contract | `docs/api_contract.md` | REST endpoints, auth matrix |
+| Service Contracts | `docs/service_contracts.md` | Method signatures, invariants |
+| Open Questions Register | `docs/OPEN_QUESTIONS.md` | Business rule classifications, open decisions & safeguards |
 | Module Map | `MODULE_MAP.md` (project root) | Module definitions, dependencies |

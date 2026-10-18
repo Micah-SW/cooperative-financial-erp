@@ -91,3 +91,16 @@ class ConfigValueType(str, Enum):
     INTEGER = "INTEGER"
     STRING = "STRING"
     BOOLEAN = "BOOLEAN"
+
+
+class AuditAction(str, Enum):
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    VERIFY = "VERIFY"
+    REVERSE = "REVERSE"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    EXIT = "EXIT"
+    DEACTIVATE = "DEACTIVATE"
+    LOGIN = "LOGIN"
+    CONFIG_CHANGE = "CONFIG_CHANGE"
