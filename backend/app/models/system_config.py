@@ -14,16 +14,59 @@ Business Rules:
     - Changing a value closes the current record and creates a new one
     - Config keys: SHARE_VALUE, SHARES_PER_MEMBER, MEMBER_CONTRIBUTION_AMOUNT,
                    OPERATING_CONTRIBUTION_AMOUNT, COOPERATIVE_NAME, CURRENCY_CODE
-
-TODO (Gemini):
-    - Implement using SQLAlchemy 2.0 Mapped[] style
-    - Inherit from CoopBase
-    - Fields: id, config_key, config_value, value_type, description,
-              effective_from, effective_to, created_at, created_by (FK→users)
-    - Unique partial index: (config_key) WHERE effective_to IS NULL
 """
 
-# class SystemConfig(CoopBase):
-#     __tablename__ = "system_config"
-#     __table_args__ = {"schema": "coop"}
-#     ...
+import uuid
+from datetime import date
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import CoopBase
+
+if TYPE_CHECKING:
+    from app.models.user import User
+
+
+class SystemConfig(CoopBase):
+    """Effective-dated system configuration entry."""
+
+    __tablename__ = "system_config"
+    __table_args__ = (
+        UniqueConstraint("config_key", "effective_from", name="uq_system_config_key_effective"),
+        CheckConstraint(
+            "value_type IN ('DECIMAL', 'INTEGER', 'STRING', 'BOOLEAN')",
+            name="ck_system_config_value_type",
+        ),
+        CheckConstraint(
+            "effective_to IS NULL OR effective_to >= effective_from",
+            name="ck_system_config_dates",
+        ),
+        Index("ix_system_config_lookup", "config_key", "effective_from", "effective_to"),
+        {"schema": "coop"},
+    )
+
+    config_key: Mapped[str] = mapped_column(String(50), nullable=False)
+    config_value: Mapped[str] = mapped_column(Text, nullable=False)
+    value_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("coop.users.id"),
+        nullable=False,
+    )
+
+    # Relationships
+    creator: Mapped["User"] = relationship("User", back_populates="created_configs")

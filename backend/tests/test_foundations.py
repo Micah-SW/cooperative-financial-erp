@@ -10,11 +10,9 @@ Tests verify:
 - Alembic configuration security and metadata registration.
 """
 
-import math
-import uuid
 import pytest
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy import Integer, String, select, text
+from sqlalchemy import Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.pool import StaticPool

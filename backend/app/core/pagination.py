@@ -15,7 +15,8 @@ Must NOT:
 """
 
 import math
-from typing import Generic, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select
@@ -76,8 +77,7 @@ async def paginate(
 
     Returns PaginatedResult with items, total count, and page metadata.
     """
-    if page < 1:
-        page = 1
+    page = max(page, 1)
     if per_page < 1:
         per_page = 25
 

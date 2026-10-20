@@ -2,29 +2,16 @@
 Top-Level API Router Aggregation.
 
 Responsibility:
-    - Import and include all v1 routers
-    - Mount under /api/v1 prefix
-
-TODO (Gemini):
-    - Import all v1 routers
-    - Create api_router = APIRouter()
-    - Include each sub-router with appropriate prefix and tags:
-        /auth        → auth router (tags: ["Authentication"])
-        /members     → members router (tags: ["Members"])
-        /contributions → contributions router (tags: ["Contributions"])
-        /withdrawals → withdrawals router (tags: ["Withdrawals"])
-        /funds       → funds router (tags: ["Funds"])
-        /transactions → transactions router (tags: ["Transactions"])
-        /projects    → projects router (tags: ["Projects"])
-        /properties  → properties router (tags: ["Properties"])
-        /expenses    → expenses router (tags: ["Expenses"])
-        /reports     → reports router (tags: ["Reports"])
-        /config      → config router (tags: ["Configuration"])
-        /users       → users router (tags: ["Users"])
-        /audit-logs  → audit router (tags: ["Audit"])
+    - Aggregate version 1 API routers for inclusion in FastAPI application
 """
 
-# from fastapi import APIRouter
-# api_router = APIRouter(prefix="/api/v1")
-# api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# ...
+from fastapi import APIRouter
+
+from app.api.v1 import audit_logs, auth, config, users
+
+api_router = APIRouter()
+
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(config.router, prefix="/config", tags=["Configuration"])
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
+api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["Audit"])

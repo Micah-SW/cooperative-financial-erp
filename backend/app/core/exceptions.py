@@ -26,7 +26,6 @@ class CoopException(Exception):
 
 class NotFoundError(CoopException):
     """Entity not found."""
-    pass
 
 
 class BusinessValidationError(CoopException):
@@ -41,14 +40,22 @@ class BusinessValidationError(CoopException):
 ValidationError = BusinessValidationError
 
 
+class AuthenticationError(CoopException):
+    """Authentication failed due to bad credentials, missing token, or expired token."""
+
+    def __init__(self, message: str = "Could not validate credentials"):
+        super().__init__(message, error_code="UNAUTHORIZED")
+
+
 class AuthorizationError(CoopException):
     """Insufficient permissions for the requested operation."""
-    pass
+
+    def __init__(self, message: str = "Insufficient permissions"):
+        super().__init__(message, error_code="FORBIDDEN")
 
 
 class ImmutabilityError(CoopException):
     """Attempt to mutate an immutable record (e.g., a transaction)."""
-    pass
 
 
 class InsufficientFundsError(CoopException):

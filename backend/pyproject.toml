@@ -31,6 +31,9 @@ dev = [
 requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
@@ -38,3 +41,35 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.lint]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Security",
+    "Depends",
+    "Query",
+    "Path",
+    "Body",
+    "Header",
+    "Security",
+    "require_role",
+    "app.core.dependencies.require_role",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Intentional pass statements in future business-service skeletons deferred to subsequent chapters
+"app/services/contribution_service.py" = ["PIE790"]
+"app/services/expense_service.py" = ["PIE790"]
+"app/services/fund_service.py" = ["PIE790"]
+"app/services/member_service.py" = ["PIE790"]
+"app/services/project_service.py" = ["PIE790"]
+"app/services/property_service.py" = ["PIE790"]
+"app/services/report_service.py" = ["PIE790"]
+"app/services/transaction_service.py" = ["PIE790"]
+"app/services/withdrawal_service.py" = ["PIE790"]

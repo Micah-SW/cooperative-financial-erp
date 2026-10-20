@@ -15,7 +15,7 @@ Implement helpers for:
   - validate_positive(value: Decimal, field_name: str) -> Decimal
 """
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 CURRENCY_CODE = "ETB"
 MONEY_PRECISION = Decimal("0.01")
