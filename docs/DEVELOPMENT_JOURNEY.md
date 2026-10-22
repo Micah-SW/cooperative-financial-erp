@@ -83,17 +83,54 @@ Implemented and verified the foundational backend: application entry point with 
   - Added 47 comprehensive tests covering application lifecycle, health/ready probes, auth, RBAC, bootstrap CLI hardening, user administration, self-demotion/deactivation safeguards, last-admin safeguards, config effective-dating, audit passive-deletes & recursive redaction, and Alembic metadata.
   - Total test suite: 76 passed, 0 failed.
 
-### Next chapter: Know Every Member
-- Member domain models (`Member`, `MemberStatus`, KYC details, member number sequence).
-- Member registration, verification, profile update, and search workflows.
-- Member status transitions (`ACTIVE`, `INACTIVE`, `SUSPENDED`, `EXITED`) with strict audit logging.
-- Read-only queries for member directories and summaries.
+### Chapter 03 completed
+Engine awakened, authenticated, role-protected, configurable, and verified.
+
+## Chapter 04: Know Every Member
+Date: 2026-10-22
+
+### Milestone
+Implemented member registration, member records, share allocation and share-history management, member queries, member lifecycle transitions, related API endpoints, audit events, forward-only Alembic database migration, and a comprehensive 102-test passing automated test suite.
+
+### Accomplishments
+- **Domain Models (`backend/app/models/member.py`, `backend/app/models/share.py`)**:
+  - Implemented `Member` in `coop.members` with unique indexed `member_number`, status check (`ACTIVE`, `EXITED`, `SUSPENDED`), exit date constraint (`date_exited IS NULL OR date_exited >= date_joined`), and `created_by` foreign key referencing `coop.users.id` with `ON DELETE RESTRICT`.
+  - Configured `shares` relationship with `passive_deletes=True` to prevent accidental cascading deletion of share history.
+  - Implemented `Share` in `coop.shares` with `NUMERIC(15, 2)` monetary columns, foreign keys with `ON DELETE RESTRICT`, and database check constraints enforcing `share_count >= 0`, `value_per_share > 0`, and `total_value = share_count * value_per_share`.
+  - Registered both models in `backend/app/models/__init__.py`.
+- **Pydantic Schemas (`backend/app/schemas/member.py`)**:
+  - Implemented `MemberCreate`, `MemberUpdate` (with strict immutability validation rejecting `member_number` and `status`), `MemberExitRequest`, `ShareResponse`, `MemberSummary`, and `MemberDetail`.
+  - Derived current share state from the latest share-history record rather than summing historical snapshots.
+- **Member Service (`backend/app/services/member_service.py`)**:
+  - `create_member`: Closed-by-default registration gating (`MEMBERSHIP_OPEN` config required to be `true`). Duplicate `member_number` pre-checks and database integrity error handling. Dynamic configuration of `SHARE_VALUE` and `SHARES_PER_MEMBER` via `ConfigService`. Atomic member creation, initial share allocation, and `AuditAction.CREATE` emission.
+  - `update_member`: Validates allowed mutable fields, prevents modification of immutable fields, and emits `AuditAction.UPDATE`.
+  - `get_member` & `list_members`: Deterministic share history ordering (`effective_date DESC, created_at DESC`). Paginated member search across `member_number`, `full_name`, and `phone`, with optional status filter.
+  - `exit_member`: One-way lifecycle transition (`ACTIVE` → `EXITED`). Rejects already-exited or non-active members. Appends zero-share extinguishing record (`share_count = 0`, `total_value = 0.00`). Emits `AuditAction.EXIT`. Strictly avoids unauthorized financial payouts or transaction generation.
+- **API & RBAC (`backend/app/api/v1/members.py`)**:
+  - Mounted `/api/v1/members` in `backend/app/api/router.py`.
+  - Enforced strict RBAC: `ADMIN` for create, update, and exit operations; `ADMIN`, `TREASURER`, `VIEWER` for read and list operations.
+- **Alembic Migration (`backend/alembic/versions/20261022_0001_members_and_shares.py`)**:
+  - Forward-only migration creating `coop.members` and `coop.shares`.
+  - Verified static SQL generation for both upgrade (`alembic upgrade head --sql`) and downgrade (`alembic downgrade 20261022_0001:20261020_0001 --sql`).
+- **Automated Test Suite**:
+  - Added 33 tests across 4 modules: `test_member_models.py` (7 tests), `test_member_service.py` (14 tests), `test_members_api.py` (10 tests), and `test_member_migration.py` (2 tests).
+  - Validated narrow `IntegrityError` classification via constraint diagnostics (`uq_members_member_number`), clean savepoint rollback, configured share value validation, and deterministic same-date exit share ordering invariants.
+  - Maintained all 76 previous tests. Total test suite: 109 passed, 0 failed.
+
+### Chapter 04 completed
+Member KYC, share records, lifecycle transitions, API endpoints, and migration fully verified.
+
+### Next chapter: Account for Every Birr
+- Core financial ledger models (`Fund`, `Transaction`, `Contribution`, `Withdrawal`).
+- Double-entry transaction engine with fund balance locking.
+- Monthly member contributions and operating contributions.
+- Strict ledger immutability triggers.
 
 ### Planned journey
 1. The Blueprint (Completed)
 2. Repair the Foundations (Completed)
 3. Wake the Engine (Completed)
-4. Know Every Member
+4. Know Every Member (Completed)
 5. Account for Every Birr
 6. Build the Cooperative's Assets
 7. Bring the Numbers to Light

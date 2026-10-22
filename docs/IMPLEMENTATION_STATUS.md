@@ -1,7 +1,7 @@
 # Cooperative Financial Management ERP — Implementation Status
 
-Last Updated: 2026-10-20
-Current Status: **Chapter 03: Wake the Engine — Completed and Verified**
+Last Updated: 2026-10-22
+Current Status: **Chapter 04: Know Every Member — Completed and Verified**
 
 ---
 
@@ -11,8 +11,8 @@ Current Status: **Chapter 03: Wake the Engine — Completed and Verified**
 | :--- | :--- | :--- | :--- | :--- |
 | **01** | **The Blueprint** | **Completed** | 2026-10-14 | Repository scaffolding, initial architecture docs, structural layout |
 | **02** | **Repair the Foundations** | **Completed** | 2026-10-18 | Reconciled specs, cleaned `.gitignore`, Alembic setup, 29 baseline tests |
-| **03** | **Wake the Engine** | **Completed** | 2026-10-20 | Working FastAPI app, foundational models, auth/RBAC, audit, config, initial migration, 64 tests |
-| **04** | **Know Every Member** | *Pending* | — | Member KYC, lifecycle, directory, verification |
+| **03** | **Wake the Engine** | **Completed** | 2026-10-20 | Working FastAPI app, foundational models, auth/RBAC, audit, config, initial migration, 76 tests |
+| **04** | **Know Every Member** | **Completed** | 2026-10-22 | Member KYC, lifecycle transitions, share records, member API & RBAC, migration 20261022_0001, 109 tests |
 | **05** | **Account for Every Birr** | *Pending* | — | Financial ledger, double-entry transactions, contributions, share capital |
 | **06** | **Build the Cooperative's Assets** | *Pending* | — | Property, rental units, tenant contracts, project accounting |
 | **07** | **Bring the Numbers to Light** | *Pending* | — | Financial statements, member balances, fund summaries, dashboard metrics |
@@ -88,6 +88,34 @@ Current Status: **Chapter 03: Wake the Engine — Completed and Verified**
   - Defines PostgreSQL immutability trigger for `audit_logs`.
   - Verified offline SQL generation (`alembic upgrade head --sql` and `alembic downgrade 20261020_0001:base --sql`).
 
+### G. Member & Share Domain Models (Schema `coop`)
+- [x] **Member (`backend/app/models/member.py`)**:
+  - Primary key: UUID v4 (`id`)
+  - Unique constraint: `uq_members_member_number`
+  - Status check: `ck_members_status` (`ACTIVE`, `EXITED`, `SUSPENDED`)
+  - Date sanity check: `ck_members_exit_dates` (`date_exited IS NULL OR date_exited >= date_joined`)
+  - Foreign key: `created_by` references `coop.users.id` with `ON DELETE RESTRICT`
+  - Relationship protection: `shares` relationship configured with `passive_deletes=True` to prevent cascade deletion
+  - Dynamic properties: `current_share_count` and `current_share_value` determined from latest share history record
+- [x] **Share (`backend/app/models/share.py`)**:
+  - Primary key: UUID v4 (`id`)
+  - Foreign keys: `member_id` references `coop.members.id` (`ON DELETE RESTRICT`), `created_by` references `coop.users.id` (`ON DELETE RESTRICT`)
+  - Precision: `NUMERIC(15, 2)` for `value_per_share` and `total_value`
+  - Check constraints: `ck_shares_count` (`share_count >= 0`), `ck_shares_value_per_share` (`value_per_share > 0`), `ck_shares_total_value` (`total_value = share_count * value_per_share`)
+  - Indexes: `ix_shares_member_id`, `ix_shares_effective_date` (DESC)
+- [x] **Chapter 04 Migration Script (`backend/alembic/versions/20261022_0001_members_and_shares.py`)**:
+  - Creates `coop.members` and `coop.shares` tables with strict constraints, indexes, and `RESTRICT` foreign keys.
+  - Reversible downgrade dropping indexes and tables cleanly.
+  - Verified static SQL generation for upgrade and downgrade.
+
+### H. Member Service & Lifecycle Workflows
+- [x] **Member Service (`backend/app/services/member_service.py`)**:
+  - `create_member`: Fails closed if `MEMBERSHIP_OPEN` is absent/false (`BusinessValidationError`). Checks uniqueness (`DuplicateError`). Retrieves effective `SHARE_VALUE` (ETB 5,000) and `SHARES_PER_MEMBER` (12) from `ConfigService`. Inserts member + initial share record + audit log in one atomic transaction.
+  - `update_member`: Updates allowed mutable contact fields (`phone`, `email`, `address`, `notes`). Rejects immutable `member_number` and `status`. Emits `AuditAction.UPDATE`.
+  - `get_member`: Loads member with associated share history ordered deterministically (`effective_date DESC, created_at DESC`).
+  - `list_members`: Supports status filtering and substring search across `member_number`, `full_name`, `phone` with standard pagination.
+  - `exit_member`: Enforces one-way `ACTIVE` → `EXITED` transition. Rejects invalid transition (`InvalidStateTransitionError`). Appends zero-share extinguishing record (`share_count = 0`, `total_value = 0.00`). Emits `AuditAction.EXIT`. Strictly avoids unauthorized financial payouts or transaction generation.
+
 ---
 
 ## 3. Implemented API Endpoints (v1)
@@ -109,12 +137,17 @@ Current Status: **Chapter 03: Wake the Engine — Completed and Verified**
 | `/api/v1/config/{key}` | `PUT` | Bearer | `ADMIN` | Active | Update config with effective dating |
 | `/api/v1/config/{key}/history` | `GET` | Bearer | `ADMIN` | Active | Get chronological config history |
 | `/api/v1/audit-logs` | `GET` | Bearer | `ADMIN`, `TREASURER` | Active | Query audit logs (filtered & paginated) |
+| `/api/v1/members` | `GET` | Bearer | `ADMIN`, `TREASURER`, `VIEWER` | Active | List members (paginated, search, status filter) |
+| `/api/v1/members` | `POST` | Bearer | `ADMIN` | Active | Register member (atomic share allocation & audit) |
+| `/api/v1/members/{id}` | `GET` | Bearer | `ADMIN`, `TREASURER`, `VIEWER` | Active | Get member detail and full share history |
+| `/api/v1/members/{id}` | `PUT` | Bearer | `ADMIN` | Active | Update member profile (immutable field protection) |
+| `/api/v1/members/{id}/exit` | `POST` | Bearer | `ADMIN` | Active | Process member exit (one-way transition & zero-share record) |
 
 ---
 
 ## 4. Test Suite Execution Summary
 
-Total Automated Tests: **76 passing, 0 failing**
+Total Automated Tests: **109 passing, 0 failing**
 
 - **Chapter 02 Foundation Tests (`tests/test_foundations.py`)**: 29 passed
   - Canonical Enums: 3 tests
@@ -133,6 +166,11 @@ Total Automated Tests: **76 passing, 0 failing**
   - System Configuration & Effective-Dating (`tests/test_config.py`): 5 tests
   - Audit Logging, Passive Deletes & Nested Redaction (`tests/test_audit.py`): 5 tests
   - Alembic Foundational Migration Validation (`tests/test_migration.py`): 3 tests
+- **Chapter 04 Member & Share Tests (`tests/test_members/`)**: 33 passed
+  - Member & Share Models & Constraints (`tests/test_members/test_member_models.py`): 7 tests
+  - Member Service Lifecycle & Safeguards (`tests/test_members/test_member_service.py`): 14 tests (including narrow IntegrityError classification, session state recovery, config share validation, and same-date exit share ordering)
+  - Member API Endpoints, RBAC & Immutability (`tests/test_members/test_members_api.py`): 10 tests (including same-date exit via API)
+  - Member Migration Discovery & Script Validation (`tests/test_members/test_member_migration.py`): 2 tests
 
 ---
 
@@ -142,10 +180,12 @@ As mandated by project boundaries, the following financial rules documented in `
 
 1. **UBR-1 (Share Balance vs Contribution)**: Status: Open. No ledger or share distribution logic implemented.
 2. **UBR-2 (Opening Balance Reconciliation)**: Status: Open. No historical import routines created.
-3. **UBR-3 (Member Exit Settlement Formula)**: Status: Open. No exit payout calculations implemented.
+3. **UBR-3 (Member Exit Settlement Formula)**: Status: Open. No exit payout calculations implemented. Exit workflow only transitions member status, appends an extinguishing zero-share record, and logs audit events.
 4. **UBR-4 (Bank Deposit Verification Policy)**: Status: Open. No automatic approval triggers created.
 5. **UBR-5 (Rental Income Allocation & Statutory Reserves)**: Status: Open. No automated dividend or reserve distribution logic implemented.
-6. **UBR-6 through UBR-18**: Status: Open. Strict architectural separation maintained.
+6. **UBR-14 (Share Capital vs Contribution Balance Relationship)**: Status: Open. Preserved separate share table without combining share capital into recurring contribution balances.
+7. **UBR-17 (Member Exit Permanence vs. Readmission Policy)**: Status: Open. Technical safeguard enforces one-way `ACTIVE` → `EXITED` transition in v1 without physical deletion, while cooperative bylaws on readmission remain unresolved.
+8. **UBR-6 through UBR-18**: Status: Open. Strict architectural separation maintained.
 
 ---
 

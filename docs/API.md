@@ -283,3 +283,126 @@ Query immutable audit events with pagination and filters.
   }
   ```
 - **Security Guarantee**: Sensitive fields (`password`, `access_token`, `token`, `secret`, `hashed_password`) are permanently sanitized as `[REDACTED]` prior to persistence.
+
+---
+
+## 8. Member Management Endpoints (`/api/v1/members`)
+
+### `GET /api/v1/members`
+Retrieve paginated list of cooperative members with summary share balances.
+- **Auth**: `ADMIN` | `TREASURER` | `VIEWER`
+- **Query Parameters**:
+  - `status` (optional): Filter by `MemberStatus` (`ACTIVE` | `EXITED` | `SUSPENDED`)
+  - `search` (optional): Case-insensitive substring match across `member_number`, `full_name`, and `phone`
+  - `page` (optional, default `1`): Page number
+  - `per_page` (optional, default `25`, max `100`): Items per page
+- **Response**: `200 OK` (`PaginatedResult[MemberSummary]`)
+  ```json
+  {
+    "items": [
+      {
+        "id": "7b524670-3982-4fcf-8472-353d9e334df5",
+        "member_number": "M-0001",
+        "full_name": "Abebe Kebede",
+        "phone": "+251911223344",
+        "status": "ACTIVE",
+        "date_joined": "2024-01-15",
+        "current_share_count": 12,
+        "current_share_value": "60000.00"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "per_page": 25,
+    "total_pages": 1
+  }
+  ```
+
+### `POST /api/v1/members`
+Register a new member and allocate initial shares.
+- **Auth**: `ADMIN` only
+- **Behavior**:
+  - Requires `MEMBERSHIP_OPEN` configuration to be explicitly `true`. Fails closed with `400 VALIDATION_ERROR` if absent or false.
+  - Requires unique `member_number`. Returns `409 DUPLICATE_RESOURCE` on collision.
+  - Automatically queries `SHARE_VALUE` (e.g. ETB 5,000.00) and `SHARES_PER_MEMBER` (e.g. 12) from `ConfigService`.
+  - Atomically creates member, initial share record, and `CREATE` audit log.
+- **Request Body**:
+  ```json
+  {
+    "member_number": "M-0001",
+    "full_name": "Abebe Kebede",
+    "phone": "+251911223344",
+    "email": "abebe@example.com",
+    "address": "Bole Subcity, Woreda 03",
+    "date_joined": "2024-01-15",
+    "notes": "Founding member"
+  }
+  ```
+- **Response**: `201 Created` (`MemberDetail`)
+
+### `GET /api/v1/members/{id}`
+Retrieve complete member profile and chronological share history.
+- **Auth**: `ADMIN` | `TREASURER` | `VIEWER`
+- **Response**: `200 OK` (`MemberDetail`)
+  ```json
+  {
+    "id": "7b524670-3982-4fcf-8472-353d9e334df5",
+    "member_number": "M-0001",
+    "full_name": "Abebe Kebede",
+    "phone": "+251911223344",
+    "email": "abebe@example.com",
+    "address": "Bole Subcity, Woreda 03",
+    "status": "ACTIVE",
+    "date_joined": "2024-01-15",
+    "date_exited": null,
+    "exit_reason": null,
+    "notes": "Founding member",
+    "current_share_count": 12,
+    "current_share_value": "60000.00",
+    "shares": [
+      {
+        "id": "a1834271-e945-4299-ba6b-4e6378e9f5b2",
+        "member_id": "7b524670-3982-4fcf-8472-353d9e334df5",
+        "share_count": 12,
+        "value_per_share": "5000.00",
+        "total_value": "60000.00",
+        "effective_date": "2024-01-15",
+        "created_at": "2024-01-15T09:00:00Z"
+      }
+    ]
+  }
+  ```
+
+### `PUT /api/v1/members/{id}`
+Update mutable contact and profile information for a member.
+- **Auth**: `ADMIN` only
+- **Immutability Protection**: `member_number` and `status` are strictly immutable. Supplying either field produces an explicit `422 VALIDATION_ERROR`.
+- **Request Body**:
+  ```json
+  {
+    "full_name": "Abebe Kebede Worku",
+    "phone": "+251911998877",
+    "email": "abebe.worku@example.com",
+    "address": "Yeka Subcity, Woreda 08",
+    "notes": "Updated contact details"
+  }
+  ```
+- **Response**: `200 OK` (`MemberDetail`)
+
+### `POST /api/v1/members/{id}/exit`
+Process member exit lifecycle transition.
+- **Auth**: `ADMIN` only
+- **Behavior**:
+  - Enforces one-way `ACTIVE` → `EXITED` transition (rejects if already `EXITED` or not `ACTIVE`).
+  - Appends an extinguishing share-history record (`share_count = 0`, `total_value = 0.00`), preserving all historical records.
+  - Emits `EXIT` audit log.
+  - **Strict Scope Boundary**: Performs membership lifecycle transition and share extinguishing only. Does NOT compute exit settlements, issue payouts, or generate financial ledger transactions (deferred to Chapter 05 per UBR-1 / UBR-3).
+- **Request Body**:
+  ```json
+  {
+    "exit_date": "2026-10-22",
+    "exit_reason": "Relocating abroad",
+    "notes": "Membership terminated"
+  }
+  ```
+- **Response**: `200 OK` (`MemberDetail`)

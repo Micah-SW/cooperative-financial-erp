@@ -11,34 +11,40 @@ from app.models.base import CoopBase
 
 
 def test_migration_files_and_head_revision():
-    """Verify that Alembic discovers the initial foundation migration as head."""
+    """Verify that Alembic discovers the migrations chain with Chapter 04 as head."""
     alembic_cfg_path = Path(__file__).parent.parent / "alembic.ini"
     config = Config(str(alembic_cfg_path))
     script = ScriptDirectory.from_config(config)
 
+    # Initial foundation revision
+    init_rev = script.get_revision("20261020_0001")
+    assert init_rev is not None
+    assert init_rev.down_revision is None
+    assert "Initial database migration" in init_rev.doc
+
+    # Chapter 04 members and shares revision as current head
     head = script.get_current_head()
-    assert head == "20261020_0001"
+    assert head == "20261022_0001"
+    ch04_rev = script.get_revision(head)
+    assert ch04_rev is not None
+    assert ch04_rev.down_revision == "20261020_0001"
+    assert "members and shares" in ch04_rev.doc
 
-    revision = script.get_revision(head)
-    assert revision is not None
-    assert revision.down_revision is None
-    assert "Initial database migration" in revision.doc
 
-
-def test_metadata_contains_only_foundational_tables():
-    """Verify target metadata registers only the approved foundational tables."""
+def test_metadata_contains_only_foundational_and_member_tables():
+    """Verify target metadata registers only approved foundational and Chapter 04 member tables."""
     table_keys = set(CoopBase.metadata.tables.keys())
-    expected_foundational_tables = {
+    expected_tables = {
         "coop.users",
         "coop.audit_log",
         "coop.system_config",
-    }
-    assert table_keys == expected_foundational_tables
-
-    # Verify no unfinished business tables leaked into metadata
-    unwanted = {
         "coop.members",
         "coop.shares",
+    }
+    assert table_keys == expected_tables
+
+    # Verify no downstream future business tables leaked into metadata
+    unwanted = {
         "coop.contributions",
         "coop.withdrawals",
         "coop.transactions",
