@@ -75,3 +75,84 @@ def test_migration_script_creates_only_foundational_tables():
     for business_table in ["members", "shares", "contributions", "withdrawals", "transactions", "funds"]:
         assert f'op.create_table("{business_table}"' not in content
         assert f'op.create_table(\n        "{business_table}"' not in content
+
+
+def test_do_run_migrations_transaction_boundaries():
+    """Verify that do_run_migrations explicitly commits schema creation in its own transaction
+
+    when not already in transaction on PostgreSQL, while preserving external transactions and SQLite.
+    """
+    import importlib.util
+    from unittest.mock import MagicMock, patch
+
+    from sqlalchemy.dialects import postgresql, sqlite
+
+    from alembic import context
+
+    alembic_cfg_path = Path(__file__).parent.parent / "alembic.ini"
+    config = Config(str(alembic_cfg_path))
+    context.config = config
+
+    with (
+        patch.object(context, "is_offline_mode", return_value=True),
+        patch.object(context, "configure"),
+        patch.object(context, "begin_transaction"),
+        patch.object(context, "run_migrations"),
+    ):
+        spec = importlib.util.spec_from_file_location(
+            "alembic_env_unit_test",
+            str(Path(__file__).parent.parent / "alembic" / "env.py"),
+        )
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+    # 1. PostgreSQL connection not in transaction -> calls connection.begin()
+    mock_conn_pg = MagicMock()
+    mock_conn_pg.dialect = postgresql.dialect()
+    mock_conn_pg.in_transaction.return_value = False
+    tx_mgr = MagicMock()
+    mock_conn_pg.begin.return_value = tx_mgr
+
+    with (
+        patch.object(context, "configure") as mock_cfg,
+        patch.object(context, "begin_transaction"),
+        patch.object(context, "run_migrations"),
+    ):
+        mod.do_run_migrations(mock_conn_pg)
+        mock_conn_pg.begin.assert_called_once()
+        mock_conn_pg.execute.assert_called_once()
+        mock_cfg.assert_called_once()
+        assert mock_cfg.call_args[1]["version_table_schema"] == "coop"
+
+    # 2. PostgreSQL connection already in transaction -> does NOT call connection.begin()
+    mock_conn_pg_tx = MagicMock()
+    mock_conn_pg_tx.dialect = postgresql.dialect()
+    mock_conn_pg_tx.in_transaction.return_value = True
+
+    with (
+        patch.object(context, "configure") as mock_cfg,
+        patch.object(context, "begin_transaction"),
+        patch.object(context, "run_migrations"),
+    ):
+        mod.do_run_migrations(mock_conn_pg_tx)
+        mock_conn_pg_tx.begin.assert_not_called()
+        mock_conn_pg_tx.execute.assert_called_once()
+        mock_cfg.assert_called_once()
+        assert mock_cfg.call_args[1]["version_table_schema"] == "coop"
+
+    # 3. SQLite dialect -> does not execute schema creation and version_table_schema is None
+    mock_conn_sq = MagicMock()
+    mock_conn_sq.dialect = sqlite.dialect()
+    mock_conn_sq.in_transaction.return_value = False
+
+    with (
+        patch.object(context, "configure") as mock_cfg,
+        patch.object(context, "begin_transaction"),
+        patch.object(context, "run_migrations"),
+    ):
+        mod.do_run_migrations(mock_conn_sq)
+        mock_conn_sq.begin.assert_not_called()
+        mock_conn_sq.execute.assert_not_called()
+        mock_cfg.assert_called_once()
+        assert mock_cfg.call_args[1]["version_table_schema"] is None

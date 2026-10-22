@@ -53,9 +53,18 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Execute migrations on the provided connection."""
-    # Ensure 'coop' schema exists if running against PostgreSQL
+    # Ensure 'coop' schema exists if running against PostgreSQL.
+    # We explicitly manage and commit the schema creation in its own transaction
+    # (when not already in an active transaction) before context.configure()
+    # is invoked. This prevents SQLAlchemy 2.0 autobegin from leaving an open
+    # uncommitted transaction that causes Alembic to treat the connection as
+    # externally managed and skip committing the migration transaction.
     if connection.dialect.name == "postgresql":
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS coop"))
+        if not connection.in_transaction():
+            with connection.begin():
+                connection.execute(text("CREATE SCHEMA IF NOT EXISTS coop"))
+        else:
+            connection.execute(text("CREATE SCHEMA IF NOT EXISTS coop"))
         version_schema = "coop"
     else:
         version_schema = None
