@@ -27,6 +27,7 @@
 16. [Unresolved Business Rules](#16-unresolved-business-rules)
 17. [Architectural Risks](#17-architectural-risks)
 18. [Configurable Decisions](#18-configurable-decisions)
+19. [Modular Monolith & Architectural Evolution](#19-modular-monolith--architectural-evolution)
 
 ---
 
@@ -1116,6 +1117,41 @@ Querying config:
   - Current value: WHERE config_key = ? AND effective_to IS NULL
   - Historical value: WHERE config_key = ? AND effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?)
 ```
+
+---
+
+## 19. Modular Monolith & Architectural Evolution
+
+The Cooperative Financial Management ERP is architected to evolve as a **modular monolith**: one cohesive application with clearly separated business modules, explicit interfaces, and shared platform services.
+
+### Core Architecture Principles
+
+1. **Clear Module Boundaries**: Business domains own their responsibilities exclusively. Cross-module collaboration must use appropriate public service interfaces rather than reach directly into another module's private implementation or internal ORM models.
+2. **Shared Platform Capabilities**: Common platform concerns—authentication and authorization, API routing conventions, system configuration, common schemas and utilities, audit logging, centralized error handling, and testing conventions—must be reused consistently across modules rather than reinvented in each domain.
+3. **Controlled Extensibility**: Future modules must have a clear, approved mechanism to expose services, routes, UI screens, navigation entries, and RBAC permissions. These integration mechanisms must be introduced incrementally when justified by concrete use cases.
+4. **One Authoritative Financial Source of Truth**: Analytical tools, reporting engines, and dashboards must never create competing financial ledgers or independently maintained balances. All financial calculations and mutations must flow through validated business services and the immutable transaction ledger.
+5. **Presentation/Business Separation**: User interfaces, themes, configurable dashboards, member-profile layouts, and administrative tools must remain strictly decoupled from business logic and must never bypass backend validation, authorization checks, or data-access controls.
+6. **Controlled Change**: Database modifications require versioned, reproducible Alembic migrations. All new functionality must satisfy established quality gates, mandatory audit logging requirements, and automated test coverage.
+7. **Secure Maintenance**: Operational maintenance and security tooling may scan dependencies, recommend patches, execute test suites, and prepare reviewed changes. Unrestricted automatic modification or autonomous deployment to production is explicitly not an architectural goal.
+
+### Future Capabilities vs. Current State
+
+The following systems represent planned future capabilities, not existing implementations:
+- **Financial Intelligence & Cash-Flow Analysis**: Predictive reporting and liquidity trends built atop the core ledger.
+- **Security Center**: Enhanced audit monitoring, automated credential anomaly detection, and compliance reporting.
+- **Configurable Member Workspaces**: Role-tailored dashboards and dynamic layouts.
+- **Workflow Automation**: Configurable notification triggers and multi-step approval pipelines.
+- **Reusable Visual Components**: Extended UI component libraries for domain visualizations.
+- **Optional Feature Modules**: Additional cooperative services introduced incrementally without destabilizing core financial engines.
+
+### Architectural Non-Goals
+
+To maintain system integrity and avoid speculative complexity, the following are explicit non-goals:
+- **No generic plugin marketplace**: The system will not build runtime dynamic plugin loaders or untrusted extension registries.
+- **No universal workflow engine**: Business rules and state transitions remain explicit and code-defined rather than delegated to arbitrary BPMN/workflow engines.
+- **No visual layout editor**: UI layout remains structured code adhering to the design system.
+- **No microservice fleet**: The architecture remains a single cohesive deployable unit (modular monolith) to avoid distributed transaction overhead, eventual consistency complexities, and multi-network failure modes.
+- **No broad feature-flag framework**: Configuration uses effective-dated `system_config` values for specific business decisions, not speculative runtime feature toggling.
 
 ---
 
